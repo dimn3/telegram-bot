@@ -52,15 +52,17 @@ def get_api_answer(current_timestamp):
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
     except exceptions.ConnectionLost as error:
-        logger.error('Сбой при подключении к API')
-        raise error
+        err_message = 'Сбой при подключении к API'
+        logger.error(err_message)
+        raise error(err_message)
     if response.status_code != HTTPStatus.OK:
         raise requests.ConnectionError(response.status_code)
     try:
         return response.json()
     except exceptions.WrongFormat as error:
-        logger.error('Сервер вернул неправильный json')
-        raise error
+        err_message = 'Сервер вернул неправильный json'
+        logger.error(err_message)
+        raise error(err_message)
 
 
 def check_response(response):
@@ -68,48 +70,46 @@ def check_response(response):
     try:
         homeworks = response['homeworks']
     except KeyError:
-        logger.error('Ошибка ключа homeworks')
-        raise KeyError
-    if len(homeworks) == 0:
-        logger.error('Пустой словарь')
-        raise exceptions.EmptyList
+        error_msg = 'Ошибка ключа homeworks'
+        logger.error(error_msg)
+        raise KeyError(error_msg)
     if 'current_date' not in response:
-        logger.error('Ключ "current_date" отсутсвует')
-        raise KeyError
+        error_msg = 'Не передана дата в ответе API'
+        logger.error(error_msg)
+        raise KeyError(error_msg)
     if not isinstance(response, dict):
         message = 'Некорректный тип ответа API'
         logger.error(message)
-        raise exceptions.WrongFormat
+        raise exceptions.WrongFormat(message)
     if not isinstance(homeworks, list):
         message = 'Объект homeworks не является словарем'
         logger.error(message)
-        raise exceptions.WrongFormat
-    else:
-        return homeworks
+        raise exceptions.WrongFormat(message)
+    return homeworks
 
 
 def parse_status(homework):
     """Извлекает статус домашней работы."""
     if 'status' not in homework:
-        message = 'Ошибка при обращении к статусу домашней работы'
-        logger.error(message)
-        raise KeyError(message)
+        err_message = 'Ошибка при обращении к статусу домашней работы'
+        logger.error(err_message)
+        raise KeyError(err_message)
     if 'homework_name' not in homework:
-        message = 'Ошибка при обращении к названию домашней работы'
-        logger.error(message)
-        raise KeyError(message)
+        err_message = 'Ошибка при обращении к названию домашней работы'
+        logger.error(err_message)
+        raise KeyError(err_message)
     if homework['status'] not in VERDICTS:
-        message = 'Неверный статус работы'
-        logger.error(message)
-        raise KeyError(message)
+        err_message = 'Неверный статус работы'
+        logger.error(err_message)
+        raise KeyError(err_message)
     homework_name = homework['homework_name']
     homework_status = homework['status']
     try:
         verdict = VERDICTS[homework_status]
     except exceptions.UnregisteredStatus:
-        message = 'Передан неизвестный статус работы'
-        logger.error(message)
-        raise KeyError(message)
+        err_message = 'Передан неизвестный статус работы'
+        logger.error(err_message)
+        raise KeyError(err_message)
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
@@ -141,12 +141,21 @@ def main():
         try:
             response = get_api_answer(current_timestamp)
             homeworks = check_response(response)
-            homework_status = parse_status(homeworks[0])
-            homework_name = homeworks[0].get('homework_name')
-            if status_cache.get(homework_name) != homework_status:
-                status_cache[homework_name] = homework_status
-            send_message(bot, homework_status)
-            current_timestamp = response.get('current_date', current_timestamp)
+            if len(homeworks) != 0:
+                homework_status = parse_status(homeworks[0])
+                homework_name = homeworks[0].get('homework_name')
+                if status_cache.get(homework_name) != homework_status:
+                    status_cache[homework_name] = homework_status
+                    send_message(bot, homework_status)
+                else:
+                    message = 'Статус работы пока не изменился'
+                    send_message(bot, message)
+                current_timestamp = response.get(
+                    'current_date', current_timestamp
+                )
+            else:
+                message = 'Статус работы пока не изменился'
+                send_message(bot, message)
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             if message_cache != message and send_message(bot, message):
