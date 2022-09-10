@@ -147,15 +147,9 @@ def main():
                 if status_cache.get(homework_name) != homework_status:
                     status_cache[homework_name] = homework_status
                     send_message(bot, homework_status)
-                else:
-                    message = 'Статус работы пока не изменился'
-                    send_message(bot, message)
                 current_timestamp = response.get(
                     'current_date', current_timestamp
                 )
-            else:
-                message = 'Статус работы пока не изменился'
-                send_message(bot, message)
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             if message_cache != message and send_message(bot, message):
