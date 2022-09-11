@@ -130,7 +130,7 @@ def check_tokens():
 def main():
     """Основная логика работы бота."""
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    current_timestamp = 0
+    current_timestamp = int(time.time() - 12000000)
     message_cache = None
     status_cache = {}
     if not check_tokens():
